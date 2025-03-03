@@ -37,7 +37,7 @@ readRenviron("/home/vgranda/envvars/lfc_development_env")
 future::plan(future.callr::callr, workers = 12)
 
 # dates
-dates_to_process <- seq(Sys.Date() - 385, Sys.Date() - 368, by = "day")
+dates_to_process <- seq(Sys.Date() - 385, Sys.Date() - 5, by = "day")
 # dates_to_process <- seq(Sys.Date() - 385, Sys.Date() - 385, by = "day")
 # topo path
 raw_topo_paths <- file.path("data-raw", "peninsula_topo_500.gpkg")
