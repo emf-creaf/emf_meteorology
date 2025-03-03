@@ -1,0 +1,9 @@
+_targets/
+.vscode/
+daily_raw_meteo/
+data-raw/calibration*
+data-raw/*.png
+data-raw/*.gpkg
+data-raw/*.rds
+interpolators/
+.Renviron
