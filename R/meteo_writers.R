@@ -27,8 +27,10 @@ meteo_raw_writer <- function(daily_meteo) {
 meteo_parquet_writer <- function(gpkg_file) {
   # avoid the this and the rest of the pipe if the date is before -366, as
   # we need 16 days of previous meteo. In this case, missing gpkg
+  stopifnot(!is.null(gpkg_file))
   stopifnot(file.exists(gpkg_file))
 
+  # browser()
   interpolated_day <- sf::st_read(gpkg_file, quiet = TRUE)
   interpolated_day |>
     write_dataset(

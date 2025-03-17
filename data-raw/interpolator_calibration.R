@@ -318,8 +318,8 @@ calibration_params_table |>
   sf::st_as_sf() |>
   # dplyr::filter(n_stations < 51) |>
   ggplot() +
-  geom_sf(aes(fill = tmax_mae, color = tmax_mae), alpha = 1) +
-  facet_wrap(vars(year, month)) +
+  geom_sf(aes(fill = tmin_mae, color = tmin_mae), alpha = 1) +
+  facet_wrap(vars(year, month, day)) +
   theme_minimal()
 
 

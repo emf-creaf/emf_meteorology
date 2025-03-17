@@ -290,12 +290,15 @@ meteo_interpolator <- function(date_fin, calibration, topo_path) {
 }
 
 meteo_cross_validator <- function(calibration) {
+
+  stopifnot(!is.null(calibration))
+
   calibration |>
     dplyr::pull(interpolator_path) |>
     furrr::future_map(
       .f = \(i_path) {
         meteoland::read_interpolator(i_path) |>
-          meteoland::interpolation_cross_validation(, verbose = FALSE)
+          meteoland::interpolation_cross_validation(verbose = TRUE)
       },
       .options = furrr::furrr_options(
         packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
