@@ -29,7 +29,7 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
   # steps are given by the spatially ordered topo, variable "partition"
   steps <- sf::st_read(
     topo_path,
-    query = "SELECT DISTINCT partition FROM \"peninsula_topo_500\"",
+    query = "SELECT DISTINCT partition FROM \"penbal_topo_500\"",
     quiet = TRUE
   )$partition
 
@@ -45,7 +45,7 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
         sf::st_read(
           quiet = TRUE,
           query = glue::glue(
-            "SELECT * FROM \"peninsula_topo_500\" WHERE partition = {i_step}"
+            "SELECT * FROM \"penbal_topo_500\" WHERE partition = {i_step}"
           )
         )
 
@@ -107,15 +107,15 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
         meteoland::interpolator_calibration(
           update_interpolation_params = FALSE,
           variable = "MinTemperature",
-          N_seq = c(10, seq(100, 150, by = 10)),
-          alpha_seq = seq(20, 50, by = 10),
+          N_seq = seq(20, 160, by = 20),
+          alpha_seq = seq(10, 50, by = 10),
           verbose = FALSE
         )
       tmax_cal <- interpolator |>
         meteoland::interpolator_calibration(
           update_interpolation_params = FALSE,
           variable = "MaxTemperature",
-          N_seq = seq(1, 151, by = 25),
+          N_seq = seq(20, 160, by = 20),
           alpha_seq = seq(10, 50, by = 10),
           verbose = FALSE
         )
@@ -123,7 +123,7 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
         meteoland::interpolator_calibration(
           update_interpolation_params = FALSE,
           variable = "DewTemperature",
-          N_seq = c(10, 30, 70, 150),
+          N_seq = c(10, 30, 130, 150),
           alpha_seq = seq(0.5, 60.5, by = 10),
           verbose = FALSE
         )
@@ -132,14 +132,14 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
           update_interpolation_params = FALSE,
           variable = "PrecipitationEvent",
           N_seq = c(10, 20, 30),
-          alpha_seq = c(seq(20, 50, by = 10), 120),
+          alpha_seq = seq(20, 100, by = 20),
           verbose = FALSE
         )
       prec_amount_cal <- interpolator |>
         meteoland::interpolator_calibration(
           update_interpolation_params = FALSE,
           variable = "PrecipitationAmount",
-          N_seq = c(10, 150),
+          N_seq = c(10, 50, 120, 150),
           alpha_seq = c(1, 10, 20, 30),
           verbose = FALSE
         )
@@ -209,7 +209,7 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
     },
     .options = furrr::furrr_options(
       packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
-      chunk_size = 3
+      scheduling = FALSE
     )
   ) |>
     purrr::list_rbind()
@@ -228,7 +228,7 @@ meteo_interpolator <- function(date_fin, calibration, topo_path) {
   # steps are given by the spatially ordered topo, variable "partition"
   steps <- sf::st_read(
     topo_path,
-    query = "SELECT DISTINCT partition FROM \"peninsula_topo_500\"",
+    query = "SELECT DISTINCT partition FROM \"penbal_topo_500\"",
     quiet = TRUE
   )$partition
 
@@ -240,7 +240,7 @@ meteo_interpolator <- function(date_fin, calibration, topo_path) {
         sf::st_read(
           quiet = TRUE,
           query = glue::glue(
-            "SELECT * FROM \"peninsula_topo_500\" WHERE partition = {i_step}"
+            "SELECT * FROM \"penbal_topo_500\" WHERE partition = {i_step}"
           )
         )
 
@@ -267,8 +267,7 @@ meteo_interpolator <- function(date_fin, calibration, topo_path) {
     },
     .options = furrr::furrr_options(
       packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
-      # scheduling = 2
-      chunk_size = 3
+      scheduling = FALSE
     )
   ) |>
     purrr::list_rbind()
@@ -295,14 +294,15 @@ meteo_cross_validator <- function(calibration) {
 
   calibration |>
     dplyr::pull(interpolator_path) |>
+    purrr::set_names() |>
     furrr::future_map(
       .f = \(i_path) {
         meteoland::read_interpolator(i_path) |>
-          meteoland::interpolation_cross_validation(verbose = TRUE)
+          meteoland::interpolation_cross_validation(verbose = FALSE)
       },
       .options = furrr::furrr_options(
         packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
-        chunk_size = 3
+        scheduling = FALSE
       )
     )
 }

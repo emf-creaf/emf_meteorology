@@ -30,6 +30,6 @@ ntfy_send(
     "errored: {pipeline_log_summary$errored}"
   ),
   tags = ntfy_tag,
-  priority = 5,
+  priority = 2,
   topic = "emf_pipelines"
 )

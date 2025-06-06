@@ -6,12 +6,18 @@ library(terra)
 spain_borders <- mapSpain::esp_get_country(moveCAN = FALSE, year = "2021", epsg = "4326") |>
   sf::st_transform(crs = 25830)
 
-peninsula_only <- spain_borders |>
+spain_poly <- spain_borders |>
   sf::st_cast("POLYGON") |>
   dplyr::select(geometry) |>
-  dplyr::mutate(area = sf::st_area(geometry)) |>
+  dplyr::mutate(
+    area = sf::st_area(geometry), id = dplyr::row_number(),
+    area_km = units::set_units(area, "km^2")
+  ) |>
   dplyr::arrange(desc(area)) |>
-  dplyr::slice(1)
+  dplyr::filter(area_km > units::as_units(10, "km^2")) |>
+  # the biggest 12 polygons are the peninsula and the islands
+  dplyr::slice(1:12) |>
+  sf::st_union()
 
 topo_25_peninsula <- list.files(
   "/srv/emf_data/ftp/emf/datasets/Topography/Sources/Spain/PNOA_MDT25_ETRS89_UTM30",
@@ -27,7 +33,7 @@ future::plan(future.callr::callr, workers = 12)
 topo_spain_elev <- topo_25_peninsula |>
   terra::sprc() |>
   terra::merge() |>
-  terra::crop(terra::vect(peninsula_only), mask = TRUE)
+  terra::crop(terra::vect(spain_poly), mask = TRUE)
 
 topo_spain <- c(
   topo_spain_elev,
@@ -76,26 +82,38 @@ topo_arranged$partition |> unique() |> length()
 topo_arranged <- topo_arranged |>
   dplyr::mutate(
     partition = dplyr::case_when(
-      partition == 8 ~ 22,
-      partition == 9 ~ 23,
-      partition %in% c(25, 26) ~ 40,
+      partition == 1 ~ 15,
+      partition == 5 ~ 19,
+      partition == 6 ~ 20,
+      partition == 7 ~ 21,
+      partition == 23 ~ 37,
+      partition == 24 ~ 38,
+      partition == 25 ~ 39,
       partition == 59 ~ 60,
-      partition == 70 ~ 56,
-      partition == 83 ~ 82,
-      partition == 96 ~ 95,
-      partition %in% c(100, 114) ~ 115,
-      partition == 123 ~ 122,
+      partition == 69 ~ 55,
+      partition == 81 ~ 80,
+      partition == 95 ~ 94,
+      partition == 100 ~ 101,
+      partition == 114 ~ 115,
+      partition == 121 ~ 122,
       partition == 128 ~ 129,
       partition == 142 ~ 143,
-      partition == 178 ~ 164,
+      partition == 150 ~ 136,
+      partition == 156 ~ 157,
+      partition == 170 ~ 171,
+      partition == 185 ~ 186,
+      partition == 190 ~ 176,
       partition == 199 ~ 200,
+      # baleares
+      partition %in% c(98, 110, 111, 112, 123, 124, 125, 137) ~ 138,
+      # default
       .default = partition
     )
   )
 topo_arranged$partition |> unique() |> length()
 
 sf::st_write(
-  topo_arranged, "data-raw/peninsula_topo_500.gpkg",
+  topo_arranged, "data-raw/penbal_topo_500.gpkg",
   append = FALSE
 )
 
@@ -105,7 +123,7 @@ raster_platon_specs <- list(
   resolution = terra::res(topo_spain),
   crs = terra::crs(topo_spain)
 )
-saveRDS(raster_platon_specs, "data-raw/peninsula_platon_specs.rds")
+saveRDS(raster_platon_specs, "data-raw/penbal_platon_specs.rds")
 
 # testing
 library(ggplot2)
@@ -139,8 +157,9 @@ foo <- boundaries_arranged |>
   dplyr::mutate(bbox_area = units::drop_units(sf::st_area(topo_bbox))) |>
   ggplot() +
   geom_sf(
-    aes(color = topo_nrow, fill = bbox_area)
+    aes(fill = topo_nrow, colour = topo_nrow)
   ) +
-  geom_sf_label(aes(label = i_step))
+  geom_sf_label(aes(label = i_step), size = 6/.pt) #+
+  # geom_sf(data = spain_poly, fill = "transparent", color = "red")
 
 ggsave("data-raw/foo.png", foo)

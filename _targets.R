@@ -40,7 +40,7 @@ future::plan(future.callr::callr, workers = 12)
 dates_to_process <- seq(Sys.Date() - 385, Sys.Date() - 5, by = "day")
 # dates_to_process <- seq(Sys.Date() - 385, Sys.Date() - 385, by = "day")
 # topo path
-raw_topo_paths <- file.path("data-raw", "peninsula_topo_500.gpkg")
+raw_topo_paths <- file.path("data-raw", "penbal_topo_500.gpkg")
 
 # emf_meteorology target list
 list(
@@ -112,7 +112,7 @@ list(
     interpolated_parquet_files,
     meteo_parquet_writer(interpolated_meteo),
     pattern = map(interpolated_meteo),
-    format = "file",
+    # format = "file",
     error = "null"
   ),
   tar_target(
@@ -121,11 +121,21 @@ list(
     pattern = map(calibrations),
     error = "null"
   ),
+  tar_target(
+    cv_tables, cross_validations_postprocessor(cross_validations),
+    pattern = map(cross_validations),
+    error = "null"
+  ),
+  tar_target(
+    cv_table_file, cross_validation_writer(cv_tables),
+    format = "file",
+    error = "null"
+  ),
   # bitmaps creation
   tar_target(
     png_tibbles,
-    meteo_bitmap_creator(dates, interpolated_parquet_files),
-    pattern = map(dates, interpolated_parquet_files),
+    meteo_bitmap_creator(dates, interpolated_meteo),
+    pattern = map(dates, interpolated_meteo),
     # continue on error, return NULL
     error = "null"
   ),
@@ -133,7 +143,7 @@ list(
   tar_target(
     bitmaps_table_file,
     meteo_bitmap_writer(png_tibbles),
-    format = "file",
+    # format = "file",
     # continue on error, return NULL
     error = "null"
   )

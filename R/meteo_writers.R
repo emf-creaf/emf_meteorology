@@ -30,11 +30,21 @@ meteo_parquet_writer <- function(gpkg_file) {
   stopifnot(!is.null(gpkg_file))
   stopifnot(file.exists(gpkg_file))
 
-  # browser()
+  # s3 filesystem
+  s3_fs <- S3FileSystem$create(
+    access_key = Sys.getenv("AWS_ACCESS_KEY_ID"),
+    secret_key = Sys.getenv("AWS_SECRET_ACCESS_KEY"),
+    scheme = "https",
+    endpoint_override = Sys.getenv("AWS_S3_ENDPOINT"),
+    region = ""
+  )
+
+  meteoland_bucket <- s3_fs$cd("meteoland-spain-app-bucket")
+
   interpolated_day <- sf::st_read(gpkg_file, quiet = TRUE)
   interpolated_day |>
     write_dataset(
-      path = "/srv/emf_data/fileserver/parquet/daily_interpolated_meteo",
+      path = meteoland_bucket,
       format = "parquet",
       partitioning = c("year", "month", "day"),
       existing_data_behavior = "overwrite",
@@ -42,7 +52,7 @@ meteo_parquet_writer <- function(gpkg_file) {
     )
 
   part_parquet_file_name <- paste0(
-    "/srv/emf_data/fileserver/parquet/daily_interpolated_meteo/",
+    "s3://meteoland-spain-app-bucket/",
     paste0("year=", unique(interpolated_day[["year"]]), "/"),
     paste0("month=", unique(interpolated_day[["month"]]), "/"),
     paste0("day=", unique(interpolated_day[["day"]]), "/"),

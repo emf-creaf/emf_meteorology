@@ -19,7 +19,7 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
   # raster platon
   # Interpolated data is stored as POINTs, we need the template raster
   # dimensions and resolution to convert the POINTS to raster and then to RGB
-  raster_platon_specs <- readRDS("data-raw/peninsula_platon_specs.rds")
+  raster_platon_specs <- readRDS("data-raw/penbal_platon_specs.rds")
   raster_platon <- terra::rast(
     extent = raster_platon_specs$extent,
     resolution = raster_platon_specs$resolution,
@@ -27,9 +27,22 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
     nlyrs = length(meteo_vars)
   )
 
+  # # s3 filesystem
+  # s3_fs <- S3FileSystem$create(
+  #   access_key = Sys.getenv("AWS_ACCESS_KEY_ID"),
+  #   secret_key = Sys.getenv("AWS_SECRET_ACCESS_KEY"),
+  #   scheme = "https",
+  #   endpoint_override = Sys.getenv("AWS_S3_ENDPOINT"),
+  #   region = ""
+  # )
+  # meteoland_bucket <- s3_fs$cd(
+  #   stringr::str_remove(interpolated_meteo_file, "s3://") |>
+  #     stringr::str_remove("part-0.parquet")
+  # )
   # arrow dataset
-  interpolated_dataset <- open_dataset(interpolated_meteo_file) |>
-    sf::st_as_sf()
+  # interpolated_dataset <- open_dataset(meteoland_bucket) |>
+  #   sf::st_as_sf()
+  interpolated_dataset <- sf::st_read(interpolated_meteo_file, quiet = TRUE)
   # points to cell (pixel) indexes
   cells_index <-
     terra::cells(raster_platon, terra::vect(interpolated_dataset))[, "cell"]
@@ -40,7 +53,8 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
     dplyr::select(
       -geom, -geom_hex, -geom_text,
       -dates, -elevation, -slope, -aspect, -DOY, -WindDirection,
-      -TPI, -partition
+      -TPI, -partition,
+      -day, -month, -year
     )
 
   # assign names to the raster
@@ -49,20 +63,21 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
       !names(interpolated_dataset) %in% c(
         "geom", "geom_hex", "geom_text", "dates",
         "elevation", "slope", "aspect", "DOY", "WindDirection",
-        "TPI", "partition"
+        "TPI", "partition",
+        "day", "month", "year"
       )
     ]
 
   # write temporal platon to public repository
   ## TODO
-
   # reduce resolution and project to lat long
-  raster_platon_4326 <- terra::aggregate(raster_platon, fact = 10, fun = mean) |>
+  raster_platon_4326 <- raster_platon |>
+    terra::aggregate(fact = 4, fun = mean, na.rm = TRUE) |>
     terra::project("epsg:4326")
-  
+
   # rounding
   raster_platon_4326 <- round(raster_platon_4326 * rounding_factor, 0)
-  
+
   # color tables
   color_table_gen <- function(meteo_var) {
     scales::col_numeric(
@@ -91,6 +106,8 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
   # create temporal pngs and encode them in base64. Return a tibble with the
   # encoded png and some metadata (extent, palette, min and max values...)
   raster_platon_w <- terra::wrap(raster_platon_4326)
+  oopts <- options(future.globals.maxSize = 2.0 * 1e9)  ## 2.0 GB
+  on.exit(options(oopts))
   # bitmap_tibble <- purrr::map(
   bitmap_tibble <- furrr::future_map(
     .x = names(raster_platon_4326),
@@ -133,11 +150,21 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
 }
 
 meteo_bitmap_writer <- function(png_tibbles) {
-  png_path <-
-    "/srv/emf_data/fileserver/parquet/bitmaps/daily_interpolated_meteo_bitmaps.parquet"
+  # s3 filesystem
+  s3_fs <- S3FileSystem$create(
+    access_key = Sys.getenv("AWS_ACCESS_KEY_ID"),
+    secret_key = Sys.getenv("AWS_SECRET_ACCESS_KEY"),
+    scheme = "https",
+    endpoint_override = Sys.getenv("AWS_S3_ENDPOINT"),
+    region = ""
+  )
+
+  # write png tibble
   png_tibbles |>
     purrr::list_rbind() |>
-    arrow::write_parquet(sink = png_path)
+    arrow::write_parquet(
+      sink = s3_fs$path("meteoland-spain-app-pngs/daily_interpolated_meteo_bitmaps.parquet")
+    )
 
-  return(png_path)
+  return("meteoland-spain-app-pngs/daily_interpolated_meteo_bitmaps.parquet")
 }
