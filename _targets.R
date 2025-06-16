@@ -128,7 +128,7 @@ list(
   ),
   tar_target(
     cv_table_file, cross_validation_writer(cv_tables),
-    format = "file",
+    # format = "file",
     error = "null"
   ),
   # bitmaps creation

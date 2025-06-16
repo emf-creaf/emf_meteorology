@@ -367,7 +367,7 @@
 library(arrow)
 
 # foo <- s3_bucket(
-#   "s3://meteoland-spain-app-bucket",
+#   "s3://meteoland-spain-app-meteo",
 #   access_key = Sys.getenv("AWS_ACCESS_KEY_ID"),
 #   secret_key = Sys.getenv("AWS_SECRET_ACCESS_KEY"),
 #   scheme = "https",
@@ -384,7 +384,7 @@ foo <- S3FileSystem$create(
   region = ""
 )
 
-meteoland_s3 <- foo$cd("meteoland-spain-app-bucket")
+meteoland_s3 <- foo$cd("meteoland-spain-app-meteo")
 
 pngs_s3 <- foo$cd("meteoland-spain-app-pngs")
 

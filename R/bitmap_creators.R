@@ -163,7 +163,8 @@ meteo_bitmap_writer <- function(png_tibbles) {
   png_tibbles |>
     purrr::list_rbind() |>
     arrow::write_parquet(
-      sink = s3_fs$path("meteoland-spain-app-pngs/daily_interpolated_meteo_bitmaps.parquet")
+      sink = s3_fs$path("meteoland-spain-app-pngs/daily_interpolated_meteo_bitmaps.parquet"),
+      chunk_size = 11
     )
 
   return("meteoland-spain-app-pngs/daily_interpolated_meteo_bitmaps.parquet")

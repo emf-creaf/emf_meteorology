@@ -39,7 +39,7 @@ meteo_parquet_writer <- function(gpkg_file) {
     region = ""
   )
 
-  meteoland_bucket <- s3_fs$cd("meteoland-spain-app-bucket")
+  meteoland_bucket <- s3_fs$cd("meteoland-spain-app-meteo")
 
   interpolated_day <- sf::st_read(gpkg_file, quiet = TRUE)
   interpolated_day |>
@@ -48,15 +48,16 @@ meteo_parquet_writer <- function(gpkg_file) {
       format = "parquet",
       partitioning = c("year", "month", "day"),
       existing_data_behavior = "overwrite",
-      min_rows_per_group = 50000
+      # min_rows_per_group = 50000
+      max_rows_per_group = 5000,
+      max_rows_per_file = 1000000
     )
 
   part_parquet_file_name <- paste0(
-    "s3://meteoland-spain-app-bucket/",
+    "s3://meteoland-spain-app-meteo/",
     paste0("year=", unique(interpolated_day[["year"]]), "/"),
     paste0("month=", unique(interpolated_day[["month"]]), "/"),
-    paste0("day=", unique(interpolated_day[["day"]]), "/"),
-    "part-0.parquet"
+    paste0("day=", unique(interpolated_day[["day"]]), "/")
   )
 
   cli::cli_inform(c(
