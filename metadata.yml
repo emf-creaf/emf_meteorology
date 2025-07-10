@@ -1,0 +1,26 @@
+id: emf_meteorology
+emf_type: pipeline
+emf_public: false
+emf_automatized: true
+emf_reproducible: true
+emf_draft: true
+emf_data_type: internal_data
+data_repository: https://data-emf.creaf.cat/public/gpkg/daily_interpolated_meteo/
+model_repository: ''
+nodes:
+- meteospain
+- meteoland
+authors:
+- vgranda
+tags:
+- meteorology
+- interpolation
+- spain
+links:
+  url_source: https://github.com/emf-creaf/emf_meteorology
+requirements: ''
+description: Pipeline to generate meteo interpolation data for all Spain
+title: EMF Meteorology Pipeline
+date: '2025-07-10'
+date_lastmod: '2025-07-10'
+
