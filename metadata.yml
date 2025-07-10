@@ -3,7 +3,7 @@ emf_type: pipeline
 emf_public: false
 emf_automatized: true
 emf_reproducible: true
-emf_draft: true
+emf_draft: false
 emf_data_type: internal_data
 data_repository: https://data-emf.creaf.cat/public/gpkg/daily_interpolated_meteo/
 model_repository: ''
