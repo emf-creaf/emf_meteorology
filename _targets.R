@@ -28,6 +28,8 @@ tar_option_set(
 # Run the R scripts in the R/ folder with your custom functions:
 tar_source()
 # tar_source("other_functions.R") # Source other scripts as needed.
+# debug to avoid resetting the pipeline
+# debug(aemet_getter)
 
 # Read the environment file needed for databases and API keys
 readRenviron("/home/vgranda/envvars/lfc_development_env")
@@ -51,6 +53,12 @@ list(
   # aemet, dinamic branching for all the dates
   tar_target(
     daily_aemet, aemet_getter(dates),
+    pattern = map(dates),
+    # continue on error, return NULL for those failed dates
+    error = "null"
+  ),
+  tar_target(
+    daily_aemet_debug, aemet_getter_debug(dates),
     pattern = map(dates),
     # continue on error, return NULL for those failed dates
     error = "null"
