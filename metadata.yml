@@ -10,6 +10,7 @@ model_repository: ''
 nodes:
 - meteospain
 - meteoland
+- mfe25
 authors:
 - vgranda
 tags:
