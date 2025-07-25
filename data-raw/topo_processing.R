@@ -113,7 +113,7 @@ topo_arranged <- topo_arranged |>
 topo_arranged$partition |> unique() |> length()
 
 sf::st_write(
-  topo_arranged, "data-raw/penbal_topo_500_20250725.gpkg",
+  topo_arranged, "data-raw/penbal_topo_500.gpkg",
   append = FALSE
 )
 
