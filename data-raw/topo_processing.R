@@ -20,7 +20,7 @@ spain_poly <- spain_borders |>
   sf::st_union()
 
 topo_25_peninsula <- list.files(
-  "/srv/emf_data/ftp/emf/datasets/Topography/Sources/Spain/PNOA_MDT25_ETRS89_UTM30",
+  "/srv/emf_data/ftp/emf/datasets/Topography/Spain/PNOA_MDT25_ETRS89_UTM30",
   pattern = ".tif", full.names = TRUE
 )
 
@@ -33,7 +33,8 @@ future::plan(future.callr::callr, workers = 12)
 topo_spain_elev <- topo_25_peninsula |>
   terra::sprc() |>
   terra::merge() |>
-  terra::crop(terra::vect(spain_poly), mask = TRUE)
+  terra::crop(terra::vect(spain_poly), mask = TRUE) |>
+  terra::aggregate(fact = 20, fun =  "median")
 
 topo_spain <- c(
   topo_spain_elev,
@@ -41,8 +42,7 @@ topo_spain <- c(
     topo_spain_elev,
     v = c("aspect", "slope", "TPI"), unit = "degrees"
   )
-) |>
-  terra::aggregate(fact = 20)
+)
 
 
 peninsula_points <- topo_spain |>
@@ -113,7 +113,7 @@ topo_arranged <- topo_arranged |>
 topo_arranged$partition |> unique() |> length()
 
 sf::st_write(
-  topo_arranged, "data-raw/penbal_topo_500.gpkg",
+  topo_arranged, "data-raw/penbal_topo_500_20250725.gpkg",
   append = FALSE
 )
 
