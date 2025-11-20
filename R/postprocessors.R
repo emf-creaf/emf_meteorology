@@ -1,4 +1,7 @@
 cross_validations_postprocessor <- function(cross_validation) {
+  
+  stopifnot(!is.null(cross_validation))
+  
   purrr::imap(
     cross_validation, .f = \(cv, i_step) {
       interpolator_id <- stringr::str_extract(i_step, "_\\d+\\.") |>

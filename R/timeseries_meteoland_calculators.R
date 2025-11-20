@@ -1,4 +1,5 @@
 calculate_daily_averages <- function(parquet_files, admin_level) {
+  stopifnot(!is.null(parquet_files))
   # get the selected admin polygons, removing those belonging to Canarias,
   # Ceuta, Melilla
   admin_polygons <- switch(
