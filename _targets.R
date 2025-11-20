@@ -28,7 +28,7 @@ tar_option_set(
   # gc
   garbage_collection = 50,
   # error
-  error = "trim"
+  error = "null"
 )
 
 # Run the R scripts in the R/ folder with your custom functions:
