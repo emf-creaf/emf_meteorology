@@ -47,7 +47,7 @@ dates_to_process <- seq(Sys.Date() - 385, Sys.Date() - 5, by = "day")
 # topo path
 raw_topo_paths <- file.path("data-raw", "penbal_topo_500.gpkg")
 # admin level
-admin_level <- "comarca"
+admin_level <- c("comarca", "municipio", "provincia")
 
 # emf_meteorology target list
 list(
@@ -135,7 +135,7 @@ list(
   tar_target(
     daily_averages,
     calculate_daily_averages(interpolated_parquet_files, admin_level),
-    pattern = map(interpolated_parquet_files)
+    pattern = cross(admin_level, map(interpolated_parquet_files))
   ),
   tar_target(
     timeseries, write_meteoland_timeseries(daily_averages)
