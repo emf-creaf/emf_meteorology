@@ -7,7 +7,7 @@ setwd(Sys.getenv("PIPELINE_PATH"))
 cli::cli_alert_info("Current active pipeline: {.file {getwd()}}")
 
 ## daily make
-tar_make(reporter = "terse")
+tar_make(reporter = "timestamp")
 
 ## daily prune
 if (length(tar_prune_list() > 0)) {

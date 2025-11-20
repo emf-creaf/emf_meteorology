@@ -3,38 +3,42 @@ library(sf)
 library(terra)
 
 # topo files
-spain_borders <- mapSpain::esp_get_country(moveCAN = FALSE, year = "2021", epsg = "4326") |>
-  sf::st_transform(crs = 25830)
-
-spain_poly <- spain_borders |>
-  sf::st_cast("POLYGON") |>
-  dplyr::select(geometry) |>
-  dplyr::mutate(
-    area = sf::st_area(geometry), id = dplyr::row_number(),
-    area_km = units::set_units(area, "km^2")
-  ) |>
-  dplyr::arrange(desc(area)) |>
-  dplyr::filter(area_km > units::as_units(10, "km^2")) |>
-  # the biggest 12 polygons are the peninsula and the islands
-  dplyr::slice(1:12) |>
+spain_poly <-
+  sf::st_read("/srv/emf_data/ftp/emf/datasets/PoliticalBoundaries/Spain/Provincias_ETRS89_30N/Provincias_ETRS89_30N.shp") |>
+  sf::st_transform(crs = 25830) |>
+  dplyr::filter(!Texto %in% c("Ceuta", "Melilla", "Las Palmas", "Santa Cruz de Tenerife")) |>
   sf::st_union()
+
+# spain_borders <- mapSpain::esp_get_country(moveCAN = FALSE, year = "2021", epsg = "4326") |>
+#   sf::st_transform(crs = 25830)
+
+# spain_poly <- spain_borders |>
+#   sf::st_cast("POLYGON") |>
+#   dplyr::select(geometry) |>
+#   dplyr::mutate(
+#     area = sf::st_area(geometry), id = dplyr::row_number(),
+#     area_km = units::set_units(area, "km^2")
+#   ) |>
+#   dplyr::arrange(desc(area)) |>
+#   dplyr::filter(area_km > units::as_units(10, "km^2")) |>
+#   # the biggest 12 polygons are the peninsula and the islands
+#   dplyr::slice(1:12) |>
+#   sf::st_union()
 
 topo_25_peninsula <- list.files(
   "/srv/emf_data/ftp/emf/datasets/Topography/Spain/PNOA_MDT25_ETRS89_UTM30",
   pattern = ".tif", full.names = TRUE
 )
 
-future::plan(future.callr::callr, workers = 12)
-
-## topo
+# topo
 # fact = 40 are 1km
 # fact = 20 are 500m
 # fact = 10 are 250m
 topo_spain_elev <- topo_25_peninsula |>
   terra::sprc() |>
   terra::merge() |>
-  terra::crop(terra::vect(spain_poly), mask = TRUE) |>
-  terra::aggregate(fact = 20, fun =  "median")
+  terra::aggregate(fact = 20, fun =  "median") |>
+  terra::crop(terra::vect(spain_poly), mask = TRUE)
 
 topo_spain <- c(
   topo_spain_elev,
@@ -43,7 +47,6 @@ topo_spain <- c(
     v = c("aspect", "slope", "TPI"), unit = "degrees"
   )
 )
-
 
 peninsula_points <- topo_spain |>
   terra::as.points() |>
@@ -86,9 +89,13 @@ topo_arranged <- topo_arranged |>
       partition == 5 ~ 19,
       partition == 6 ~ 20,
       partition == 7 ~ 21,
+      partition == 8 ~ 22,
       partition == 23 ~ 37,
       partition == 24 ~ 38,
       partition == 25 ~ 39,
+      partition == 40 ~ 54,
+      partition == 41 ~ 55,
+      partition == 43 ~ 29,
       partition == 59 ~ 60,
       partition == 69 ~ 55,
       partition == 81 ~ 80,
@@ -101,9 +108,11 @@ topo_arranged <- topo_arranged |>
       partition == 150 ~ 136,
       partition == 156 ~ 157,
       partition == 170 ~ 171,
+      partition == 177 ~ 163,
       partition == 185 ~ 186,
       partition == 190 ~ 176,
       partition == 199 ~ 200,
+      partition == 201 ~ 187,
       # baleares
       partition %in% c(98, 110, 111, 112, 123, 124, 125, 137) ~ 138,
       # default
@@ -125,41 +134,41 @@ raster_platon_specs <- list(
 )
 saveRDS(raster_platon_specs, "data-raw/penbal_platon_specs.rds")
 
-# testing
-library(ggplot2)
-steps <- sort(unique(topo_arranged$partition))
+# # testing
+# library(ggplot2)
+# steps <- sort(unique(topo_arranged$partition))
 
-boundaries_arranged <- purrr::map(
-  steps,
-  .f = \(i_step) {
-    # ini <- (i_step - 1) * stepcell + 1
-    topo_bbox <- topo_arranged |>
-      # sf::st_as_sf() |>
-      # dplyr::slice(ini:(ini + stepcell)) |>
-      dplyr::filter(partition == i_step) |>
-      sf::st_bbox() |>
-      sf::st_as_sfc()
+# boundaries_arranged <- purrr::map(
+#   steps,
+#   .f = \(i_step) {
+#     # ini <- (i_step - 1) * stepcell + 1
+#     topo_bbox <- topo_arranged |>
+#       # sf::st_as_sf() |>
+#       # dplyr::slice(ini:(ini + stepcell)) |>
+#       dplyr::filter(partition == i_step) |>
+#       sf::st_bbox() |>
+#       sf::st_as_sfc()
 
-    topo_nrow <- topo_arranged |>
-      dplyr::filter(partition == i_step) |>
-      nrow()
+#     topo_nrow <- topo_arranged |>
+#       dplyr::filter(partition == i_step) |>
+#       nrow()
 
-    # topo_sliced |>
-    #   dplyr::mutate(bbox = topo_bbox, i_step = i_step)
-    dplyr::tibble(i_step = i_step, topo_bbox = topo_bbox, topo_nrow = topo_nrow)
-  }
-) |>
-  purrr::list_rbind() |>
-  sf::st_as_sf(sf_column_name = "topo_bbox")
+#     # topo_sliced |>
+#     #   dplyr::mutate(bbox = topo_bbox, i_step = i_step)
+#     dplyr::tibble(i_step = i_step, topo_bbox = topo_bbox, topo_nrow = topo_nrow)
+#   }
+# ) |>
+#   purrr::list_rbind() |>
+#   sf::st_as_sf(sf_column_name = "topo_bbox")
 
-foo <- boundaries_arranged |>
-  # dplyr::filter(i_step %in% c(1:25)) |>
-  dplyr::mutate(bbox_area = units::drop_units(sf::st_area(topo_bbox))) |>
-  ggplot() +
-  geom_sf(
-    aes(fill = topo_nrow, colour = topo_nrow)
-  ) +
-  geom_sf_label(aes(label = i_step), size = 6/.pt) #+
-  # geom_sf(data = spain_poly, fill = "transparent", color = "red")
+# foo <- boundaries_arranged |>
+#   # dplyr::filter(i_step %in% c(1:25)) |>
+#   dplyr::mutate(bbox_area = units::drop_units(sf::st_area(topo_bbox))) |>
+#   ggplot() +
+#   geom_sf(
+#     aes(fill = topo_nrow, colour = topo_nrow)
+#   ) +
+#   geom_sf_label(aes(label = i_step), size = 6/.pt) #+
+#   # geom_sf(data = spain_poly, fill = "transparent", color = "red")
 
-ggsave("data-raw/foo.png", foo)
+# ggsave("data-raw/foo.png", foo)

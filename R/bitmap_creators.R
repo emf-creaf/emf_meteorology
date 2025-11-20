@@ -3,6 +3,8 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
   # we need 16 days of previous meteo
   stopifnot(date_to_process >= (Sys.Date() - 370))
 
+  cli::cli_inform(c("i" = "Creating bitmaps for {.date {date_to_process}}"))
+
   # we need to create a png for each variable in the interpolated meteo
   meteo_vars <- c(
     "MeanTemperature", "MinTemperature", "MaxTemperature",
@@ -80,10 +82,22 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
 
   # color tables
   color_table_gen <- function(meteo_var) {
+    reverse <- TRUE
+    if (
+      dplyr::cur_column() %in% c(
+        "MeanRelativeHumidity", "MinRelativeHumidity", "MaxRelativeHumidity",
+        "Precipitation", "PET"
+      )
+    ) {
+      reverse <- FALSE
+    }
     scales::col_numeric(
-      hcl.colors(256, "ag_GrnYl"),
+      c(
+        "#FF0D50", "#FB7C82", "#FEABAC", "#FFD7D7", "#F2EFF2",
+        "#9AAABA", "#4B8AA1", "#007490", "#006584"
+      ),
       c(min(meteo_var, na.rm = TRUE), max(meteo_var, na.rm = TRUE)),
-      na.color = "#FFFFFF00", reverse = FALSE, alpha = TRUE
+      na.color = "#FFFFFF00", reverse = reverse, alpha = TRUE
     )(meteo_var)
   }
   color_tables <- terra::values(raster_platon_4326) |>
@@ -106,12 +120,24 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
   # create temporal pngs and encode them in base64. Return a tibble with the
   # encoded png and some metadata (extent, palette, min and max values...)
   raster_platon_w <- terra::wrap(raster_platon_4326)
-  oopts <- options(future.globals.maxSize = 2.0 * 1e9)  ## 2.0 GB
-  on.exit(options(oopts))
+
+  # mirai preparation
+  mirai::daemons(12)
+  withr::defer(mirai::daemons(0))
+  mirai::everywhere(
+    {
+      library(terra)
+      library(dplyr)
+    },
+    raster_platon_w = raster_platon_w, date_to_process = date_to_process
+  )
+  # oopts <- options(future.globals.maxSize = 2.0 * 1e9)  ## 2.0 GB
+  # on.exit(options(oopts))
   # bitmap_tibble <- purrr::map(
-  bitmap_tibble <- furrr::future_map(
+  # bitmap_tibble <- furrr::future_map(
+  bitmap_tibble <- mirai::mirai_map(
     .x = names(raster_platon_4326),
-    .options = furrr::furrr_options(seed = TRUE),
+    # .options = furrr::furrr_options(seed = TRUE),
     .f = \(meteo_var) {
 
       raster_platon_unw <- terra::unwrap(raster_platon_w)
@@ -139,11 +165,13 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
         right_ext = as.numeric(extent_raster[2]),
         up_ext = as.numeric(extent_raster[4]),
         # min max value of the variable to build the palette/legend later
-        min_value = min(color_tables[[meteo_var]], na.rm = TRUE) / rounding_factor,
-        max_value = max(color_tables[[meteo_var]], na.rm = TRUE) / rounding_factor
+        min_value = min(color_tables[[meteo_var]], na.rm = TRUE) /
+          rounding_factor,
+        max_value = max(color_tables[[meteo_var]], na.rm = TRUE) /
+          rounding_factor
       )
     }
-  ) |>
+  )[] |>
     purrr::list_rbind()
 
   return(bitmap_tibble)

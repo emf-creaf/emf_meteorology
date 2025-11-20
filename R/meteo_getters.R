@@ -1,23 +1,15 @@
 meteocat_getter <- function(date) {
   # key
   meteocat_key <- Sys.getenv("METEOCAT")
-  # api current day options
+  # api daily options
   meteocat_opts <- meteocat_options(
-    "hourly",
+    "daily",
     start_date = date,
     api_key = meteocat_key
   )
-  # api daily options
-  if (date != (Sys.Date() - 1)) {
-    if (date < (Sys.Date() - 1)) {
-      meteocat_opts <- meteocat_options(
-        "daily",
-        start_date = date,
-        api_key = meteocat_key
-      )
-    } else {
-      cli::cli_abort("No hourly or daily data availble for {as.character(date)}")
-    }
+  # check not today
+  if (date == Sys.Date()) {
+    cli::cli_abort("Date can not be today due to incomplete data")
   }
   # meteo download
   meteocat_meteo <- try(
@@ -28,7 +20,10 @@ meteocat_getter <- function(date) {
   )
   # check if data was downloaded
   if (inherits(meteocat_meteo, "try-error")) {
-    cli::cli_abort("Unable to download data for {.date {date}} from Meteocat service")
+    cli::cli_abort(c(
+      "x" = "Unable to download data for {.date {date}} from Meteocat service",
+      "i" = meteocat_meteo[1]
+    ))
   }
   # return raw data
   meteocat_meteo
@@ -51,19 +46,15 @@ aemet_getter <- function(date) {
 
   # key
   aemet_key <- Sys.getenv("AEMET")
-  # api current day options
-  aemet_opts <- aemet_options("current_day", api_key = aemet_key)
   # api daily options
-  if (date != (Sys.Date() - 1)) {
-    if (date < (Sys.Date() - 4)) {
-      aemet_opts <- aemet_options(
-        "daily",
-        start_date = options_dates[1], end_date = options_dates[2],
-        api_key = aemet_key
-      )
-    } else {
-      cli::cli_abort("No hourly or daily data availble for {as.character(date)}")
-    }
+  aemet_opts <- aemet_options(
+    "daily",
+    start_date = options_dates[1], end_date = options_dates[2],
+    api_key = aemet_key
+  )
+  # Check not 4 days
+  if (date >= (Sys.Date() - 4)) {
+    cli::cli_abort("Date must be at least 4 days before today due to missing data")
   }
   # meteo download
   aemet_meteo <- try(
@@ -74,7 +65,10 @@ aemet_getter <- function(date) {
   )
   # check if data was downloaded
   if (inherits(aemet_meteo, "try-error")) {
-    cli::cli_abort("Unable to download data for {.date {date}} from AEMET service")
+    cli::cli_abort(c(
+      "x" = "Unable to download data for {.date {date}} from AEMET service",
+      "i" = aemet_meteo[1]
+    ))
   }
   # return raw data
   aemet_meteo
@@ -109,7 +103,10 @@ meteogalicia_getter <- function(date) {
   )
   # check if data was downloaded
   if (inherits(meteogalicia_meteo, "try-error")) {
-    cli::cli_abort("Unable to download data for {.date {date}} from MeteoGalicia service")
+    cli::cli_abort(c(
+      "x" = "Unable to download data for {.date {date}} from MeteoGalicia service",
+      "i" = meteogalicia_meteo[1]
+    ))
   }
   # return raw data
   meteogalicia_meteo
@@ -144,7 +141,10 @@ ria_getter <- function(date) {
   )
   # check if data was downloaded
   if (inherits(ria_meteo, "try-error")) {
-    cli::cli_abort("Unable to download data for {.date {date}} from ria service")
+    cli::cli_abort(
+      "x" = "Unable to download data for {.date {date}} from ria service",
+      "i" = ria_meteo[1]
+    )
   }
   # return raw data
   ria_meteo

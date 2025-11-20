@@ -13,36 +13,41 @@ tar_option_set(
   # Packages that your targets need for their tasks.
   packages = c(
     "tibble", "meteospain", "dplyr", "readr", "arrow",
-    "geoarrow",
-    "sf", "stringr"
+    "geoarrow", "sf", "stringr"
   ),
   # Default format to qs instead of rds
   format = "qs",
-  # Memory to transient to avoid having all the objects of all targets loaded
-  memory = "transient",
+  # Memory to auto. This means transient to avoid having all the objects of all
+  # targets loaded except when persistent is best suited (see help for details)
+  memory = "auto",
   # iteration mode default to list
-  iteration = "list"
+  iteration = "list",
   # Set other options as needed.
+  controller = crew_controller_local(workers = 2),
+  storage = "worker", retrieval = "auto",
+  # gc
+  garbage_collection = 50,
+  # error
+  error = "trim"
 )
 
 # Run the R scripts in the R/ folder with your custom functions:
 tar_source()
-# tar_source("other_functions.R") # Source other scripts as needed.
-# debug to avoid resetting the pipeline
+
+# debugs to avoid resetting the pipeline
 # debug(aemet_getter)
 
 # Read the environment file needed for databases and API keys
 readRenviron("/home/vgranda/envvars/lfc_development_env")
 # readRenviron("/data/25_secrets/lfc_development_env")
 
-# future plan
-future::plan(future.callr::callr, workers = 12)
-
 # dates
 dates_to_process <- seq(Sys.Date() - 385, Sys.Date() - 5, by = "day")
 # dates_to_process <- seq(Sys.Date() - 385, Sys.Date() - 385, by = "day")
 # topo path
 raw_topo_paths <- file.path("data-raw", "penbal_topo_500.gpkg")
+# admin level
+admin_level <- "comarca"
 
 # emf_meteorology target list
 list(
@@ -54,105 +59,85 @@ list(
   tar_target(
     daily_aemet, aemet_getter(dates),
     pattern = map(dates),
-    # continue on error, return NULL for those failed dates
-    error = "null"
-  ),
-  tar_target(
-    daily_aemet_debug, aemet_getter_debug(dates),
-    pattern = map(dates),
-    # continue on error, return NULL for those failed dates
-    error = "null"
+    deployment = "main"
   ),
   # meteocat, dinamic branching for all the dates
   tar_target(
     daily_meteocat, meteocat_getter(dates),
     pattern = map(dates),
-    # continue on error, return NULL for those failed dates
-    error = "null"
+    deployment = "main"
   ),
   # meteogalicia, dinamic branching for all the dates
   tar_target(
     daily_meteogalicia, meteogalicia_getter(dates),
     pattern = map(dates),
-    # continue on error, return NULL for those failed dates
-    error = "null"
+    deployment = "main"
   ),
   # ria, dinamic branching for all the dates
   tar_target(
     daily_ria, ria_getter(dates),
     pattern = map(dates),
-    # continue on error, return NULL for those failed dates
-    error = "null"
+    deployment = "main"
   ),
   # join them
   tar_target(
     joined_meteo,
     meteo_formatter(daily_aemet, daily_meteocat, daily_meteogalicia, daily_ria),
-    pattern = map(daily_aemet, daily_meteocat, daily_meteogalicia, daily_ria),
-    # continue on error, return NULL for those failed dates
-    error = "null"
+    pattern = map(daily_aemet, daily_meteocat, daily_meteogalicia, daily_ria)
   ),
   # write parquet files branched
   tar_target(
     raw_meteo_files,
     meteo_raw_writer(joined_meteo),
-    pattern = map(joined_meteo),
-    format = "file",
-    # continue on error, return NULL for those failed dates
-    error = "null"
+    pattern = map(joined_meteo)
   ),
   # create interpolators and calibrate them
   tar_target(
     calibrations,
     meteo_interpolator_calibrator(dates, raw_meteo_files, topo_paths),
-    pattern = cross(topo_paths, map(dates, raw_meteo_files)),
-    error = "null"
+    pattern = cross(topo_paths, map(dates, raw_meteo_files))
   ),
   # interpolate and write result branched
   tar_target(
     interpolated_meteo,
     meteo_interpolator(dates, calibrations, topo_paths),
-    pattern = cross(topo_paths, map(dates, calibrations)),
-    format = "file",
-    error = "null"
+    pattern = cross(topo_paths, map(dates, calibrations))
   ),
   tar_target(
     interpolated_parquet_files,
     meteo_parquet_writer(interpolated_meteo),
-    pattern = map(interpolated_meteo),
-    # format = "file",
-    error = "null"
+    pattern = map(interpolated_meteo)
   ),
   tar_target(
     cross_validations,
     meteo_cross_validator(calibrations),
-    pattern = map(calibrations),
-    error = "null"
+    pattern = map(calibrations)
   ),
   tar_target(
     cv_tables, cross_validations_postprocessor(cross_validations),
-    pattern = map(cross_validations),
-    error = "null"
+    pattern = map(cross_validations)
   ),
   tar_target(
-    cv_table_file, cross_validation_writer(cv_tables),
-    # format = "file",
-    error = "null"
+    cv_table_file, cross_validation_writer(cv_tables)
   ),
   # bitmaps creation
   tar_target(
     png_tibbles,
     meteo_bitmap_creator(dates, interpolated_meteo),
-    pattern = map(dates, interpolated_meteo),
-    # continue on error, return NULL
-    error = "null"
+    pattern = map(dates, interpolated_meteo)
   ),
   # bitmap parquet file
   tar_target(
     bitmaps_table_file,
-    meteo_bitmap_writer(png_tibbles),
-    # format = "file",
-    # continue on error, return NULL
-    error = "null"
+    meteo_bitmap_writer(png_tibbles)
+  ),
+  # timeseries for regions
+  tar_target(
+    daily_averages,
+    calculate_daily_averages(interpolated_parquet_files, admin_level),
+    pattern = map(interpolated_parquet_files)
+  ),
+  tar_target(
+    timeseries, write_meteoland_timeseries(daily_averages)
   )
 )

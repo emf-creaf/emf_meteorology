@@ -22,8 +22,17 @@ meteo_interpolator <- function(date_fin, calibration, topo_path) {
     quiet = TRUE
   )$partition
 
+  # mirai preparation
+  mirai::daemons(12)
+  mirai::everywhere(
+    {},
+    calibration = calibration, topo_path = topo_path, date_fin = date_fin
+  )
+  withr::defer(mirai::daemons(0))
+
   # interpolated_day <- purrr::map(
-  interpolated_day <- furrr::future_map(
+  # interpolated_day <- furrr::future_map(
+  interpolated_day <- mirai::mirai_map(
     steps,
     .f = \(i_step) {
       topo_sliced <- topo_path |>
@@ -54,12 +63,12 @@ meteo_interpolator <- function(date_fin, calibration, topo_path) {
           geom_hex = sf::st_as_binary(geom, hex = TRUE),
           geom_text = sf::st_as_text(geom)
         )
-    },
-    .options = furrr::furrr_options(
-      packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
-      # scheduling = 2
-      chunk_size = 3
-    )
+    }# ,
+    # .options = furrr::furrr_options(
+    #   packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
+    #   # scheduling = 2
+    #   chunk_size = 3
+    # )
   ) |>
     purrr::list_rbind()
 

@@ -36,9 +36,21 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
   # interpolator dates
   date_ini <- date_fin - 16
 
+  # mirai preparation
+  mirai::daemons(5)
+  withr::defer(mirai::daemons(0))
+  mirai::everywhere(
+    {
+      library(sf)
+      library(dplyr)
+      library(meteoland)
+      library(arrow)
+      library(geoarrow)
+    }
+  )
+
   # interpolator creation and calibration for each topo slice
-  # calibration_day <- purrr::map(
-  calibration_day <- furrr::future_map(
+  mirai::mirai_map(
     steps,
     .f = \(i_step) {
       topo_sliced <- topo_path |>
@@ -54,7 +66,6 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
         sf::st_as_sfc()
       buffer <- topo_bbox |>
         sf::st_buffer(99000)
-      # sf::st_transform(sf::st_crs(4326)) # same crs as meteo and interpolator
 
       interpolator <- open_dataset(raw_meteo_folder) |>
         dplyr::filter(dates >= date_ini, dates <= date_fin) |>
@@ -176,7 +187,7 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
       )
 
       # save calibration params
-      daily_calibration_params_table <- dplyr::tibble(
+      dplyr::tibble(
         day = lubridate::day(date_fin),
         month = lubridate::month(date_fin),
         year = lubridate::year(date_fin),
@@ -204,17 +215,11 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
         topo_ncells = nrow(topo_sliced),
         interpolator_path = interpolator_path
       )
-
-      return(daily_calibration_params_table)
     },
-    .options = furrr::furrr_options(
-      packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
-      scheduling = FALSE
-    )
-  ) |>
+    topo_path = topo_path, raw_meteo_folder = raw_meteo_folder,
+    date_ini = date_ini, date_fin = date_fin
+  )[] |>
     purrr::list_rbind()
-
-  return(calibration_day)
 }
 
 
@@ -232,8 +237,24 @@ meteo_interpolator <- function(date_fin, calibration, topo_path) {
     quiet = TRUE
   )$partition
 
+  # mirai preparation
+  mirai::daemons(5)
+  withr::defer(mirai::daemons(0))
+  mirai::everywhere(
+    {
+      library(sf)
+      library(dplyr)
+      library(meteoland)
+      library(tidyr)
+      library(arrow)
+      library(geoarrow)
+    },
+    topo_path = topo_path, calibration = calibration, date_fin = date_fin
+  )
+
   # interpolated_day <- purrr::map(
-  interpolated_day <- furrr::future_map(
+  # interpolated_day <- furrr::future_map(
+  interpolated_day <- mirai::mirai_map(
     steps,
     .f = \(i_step) {
       topo_sliced <- topo_path |>
@@ -264,12 +285,12 @@ meteo_interpolator <- function(date_fin, calibration, topo_path) {
           geom_hex = sf::st_as_binary(geom, hex = TRUE),
           geom_text = sf::st_as_text(geom)
         )
-    },
-    .options = furrr::furrr_options(
-      packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
-      scheduling = FALSE
-    )
-  ) |>
+    }# ,
+    # .options = furrr::furrr_options(
+    #   packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
+    #   scheduling = FALSE
+    # )
+  )[] |>
     purrr::list_rbind()
 
   # write interpolated meteo (POINTS geopackge)
@@ -292,17 +313,24 @@ meteo_cross_validator <- function(calibration) {
 
   stopifnot(!is.null(calibration))
 
-  calibration |>
+  # mirai preparation
+  mirai::daemons(5)
+  withr::defer(mirai::daemons(0))
+  mirai::everywhere({ library(meteoland) })
+
+  paths <- calibration |>
     dplyr::pull(interpolator_path) |>
-    purrr::set_names() |>
-    furrr::future_map(
-      .f = \(i_path) {
-        meteoland::read_interpolator(i_path) |>
-          meteoland::interpolation_cross_validation(verbose = FALSE)
-      },
-      .options = furrr::furrr_options(
-        packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
-        scheduling = FALSE
-      )
-    )
+    purrr::set_names()
+  # furrr::future_map(
+  mirai::mirai_map(
+    paths,
+    .f = \(i_path) {
+      meteoland::read_interpolator(i_path) |>
+        meteoland::interpolation_cross_validation(verbose = FALSE)
+    }# ,
+    # .options = furrr::furrr_options(
+    #   packages = c("sf", "dplyr", "meteoland", "tidyr", "arrow", "geoarrow"),
+    #   scheduling = FALSE
+    # )
+  )[]
 }
