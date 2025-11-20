@@ -55,6 +55,8 @@ list(
   tar_target(dates, dates_to_process),
   # topo path
   tar_target(topo_paths, raw_topo_paths),
+  # admin levels
+  tar_target(admin_levels, admin_level),
   # aemet, dinamic branching for all the dates
   tar_target(
     daily_aemet, aemet_getter(dates),
@@ -135,7 +137,7 @@ list(
   tar_target(
     daily_averages,
     calculate_daily_averages(interpolated_parquet_files, admin_level),
-    pattern = cross(admin_level, map(interpolated_parquet_files))
+    pattern = cross(admin_levels, map(interpolated_parquet_files))
   ),
   tar_target(
     timeseries, write_meteoland_timeseries(daily_averages)
