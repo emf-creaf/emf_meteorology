@@ -123,7 +123,7 @@ meteo_bitmap_creator <- function(date_to_process, interpolated_meteo_file) {
   raster_platon_w <- terra::wrap(raster_platon_4326)
 
   # mirai preparation
-  mirai::daemons(5)
+  mirai::daemons(6)
   withr::defer(mirai::daemons(0))
   mirai::everywhere(
     {

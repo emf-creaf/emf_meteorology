@@ -31,7 +31,7 @@ calculate_daily_averages <- function(parquet_files, admin_level) {
   )
 
 
-  mirai::daemons(5)
+  mirai::daemons(6)
   withr::defer(mirai::daemons(0))
   mirai::everywhere({
     # db preparation

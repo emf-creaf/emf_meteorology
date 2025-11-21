@@ -23,7 +23,7 @@ meteo_interpolator <- function(date_fin, calibration, topo_path) {
   )$partition
 
   # mirai preparation
-  mirai::daemons(12)
+  mirai::daemons(6)
   mirai::everywhere(
     {},
     calibration = calibration, topo_path = topo_path, date_fin = date_fin

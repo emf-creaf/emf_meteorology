@@ -37,7 +37,7 @@ meteo_interpolator_calibrator <- function(date_fin, raw_meteo_file, topo_path) {
   date_ini <- date_fin - 16
 
   # mirai preparation
-  mirai::daemons(5)
+  mirai::daemons(6)
   withr::defer(mirai::daemons(0))
   mirai::everywhere(
     {
@@ -238,7 +238,7 @@ meteo_interpolator <- function(date_fin, calibration, topo_path) {
   )$partition
 
   # mirai preparation
-  mirai::daemons(5)
+  mirai::daemons(6)
   withr::defer(mirai::daemons(0))
   mirai::everywhere(
     {
@@ -314,7 +314,7 @@ meteo_cross_validator <- function(calibration) {
   stopifnot(!is.null(calibration))
 
   # mirai preparation
-  mirai::daemons(5)
+  mirai::daemons(6)
   withr::defer(mirai::daemons(0))
   mirai::everywhere({ library(meteoland) })
 

@@ -24,7 +24,7 @@ tar_option_set(
   iteration = "list",
   # Set other options as needed.
   controller = crew_controller_local(workers = 2),
-  storage = "worker", retrieval = "auto",
+  # storage = "worker", retrieval = "auto",
   # gc
   garbage_collection = 50,
   # error
