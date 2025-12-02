@@ -35,7 +35,7 @@ tar_option_set(
 tar_source()
 
 # debugs to avoid resetting the pipeline
-# debug(aemet_getter)
+# debug(calculate_daily_averages)
 
 # Read the environment file needed for databases and API keys
 readRenviron("/home/vgranda/envvars/lfc_development_env")
@@ -46,8 +46,6 @@ dates_to_process <- seq(Sys.Date() - 385, Sys.Date() - 5, by = "day")
 # dates_to_process <- seq(Sys.Date() - 385, Sys.Date() - 385, by = "day")
 # topo path
 raw_topo_paths <- file.path("data-raw", "penbal_topo_500.gpkg")
-# admin level
-admin_level <- c("comarca", "municipio", "provincia")
 
 # emf_meteorology target list
 list(
@@ -55,8 +53,6 @@ list(
   tar_target(dates, dates_to_process),
   # topo path
   tar_target(topo_paths, raw_topo_paths),
-  # admin levels
-  tar_target(admin_levels, admin_level),
   # aemet, dinamic branching for all the dates
   tar_target(
     daily_aemet, aemet_getter(dates),
@@ -134,12 +130,28 @@ list(
     meteo_bitmap_writer(png_tibbles)
   ),
   # timeseries for regions
+  # tar_target(
+  #   municipio_daily_averages,
+  #   calculate_daily_averages(interpolated_parquet_files, "municipio"),
+  #   pattern = map(interpolated_parquet_files)
+  # ),
   tar_target(
-    daily_averages,
-    calculate_daily_averages(interpolated_parquet_files, admin_level),
-    pattern = cross(admin_levels, map(interpolated_parquet_files))
+    comarca_daily_averages,
+    calculate_daily_averages(interpolated_parquet_files, "comarca"),
+    pattern = map(interpolated_parquet_files)
   ),
   tar_target(
-    timeseries, write_meteoland_timeseries(daily_averages)
+    provincia_daily_averages,
+    calculate_daily_averages(interpolated_parquet_files, "provincia"),
+    pattern = map(interpolated_parquet_files)
+  ),
+  tar_target(
+    municipio_timeseries, write_meteoland_timeseries(municipio_daily_averages)
+  ),
+  tar_target(
+    comarca_timeseries, write_meteoland_timeseries(comarca_daily_averages)
+  ),
+  tar_target(
+    provincia_timeseries, write_meteoland_timeseries(provincia_daily_averages)
   )
 )

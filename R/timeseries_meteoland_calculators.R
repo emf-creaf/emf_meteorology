@@ -16,7 +16,8 @@ calculate_daily_averages <- function(parquet_files, admin_level) {
       dplyr::filter(
         !ine.prov.name %in%
           c("Ceuta", "Melilla", "Palmas, Las", "Santa Cruz de Tenerife"),
-        !is.na(cpro)
+        !is.na(cpro),
+        !is.na(name)
       ) |>
       dplyr::select(name, geom) |>
       sf::st_transform(crs = 25830),
@@ -29,7 +30,6 @@ calculate_daily_averages <- function(parquet_files, admin_level) {
       dplyr::select(name, geom) |>
       sf::st_transform(crs = 25830)
   )
-
 
   mirai::daemons(6)
   withr::defer(mirai::daemons(0))
@@ -72,7 +72,7 @@ calculate_daily_averages <- function(parquet_files, admin_level) {
 
   res <- mirai::mirai_map(
     admin_polygons,
-    \(name, cpro, geom) {
+    \(name, geom) {
       # row query
       ts_query <- glue::glue("
         FROM (
@@ -81,13 +81,10 @@ calculate_daily_averages <- function(parquet_files, admin_level) {
           SELECT
             dates,
             ST_Point(geom.x, geom.y)::GEOMETRY AS geom,
-            COLUMNS('elevation|slope|aspect|Temperature|Prec|Humidity|Radiation|Wind|PET|Thermal')
+            COLUMNS('Temperature|Prec|Humidity|Radiation|Wind|PET|Thermal')
         )
         SELECT
           dates,
-          avg(elevation) FILTER (NOT isnan(elevation)) AS elevation,
-          avg(slope) FILTER (NOT isnan(slope)) AS slope,
-          avg(aspect) FILTER (NOT isnan(aspect)) AS aspect,
           avg(MeanTemperature) FILTER (NOT isnan(MeanTemperature)) AS MeanTemperature,
           avg(MinTemperature) FILTER (NOT isnan(MinTemperature)) AS MinTemperature,
           avg(MaxTemperature) FILTER (NOT isnan(MaxTemperature)) AS MaxTemperature,
@@ -107,7 +104,7 @@ calculate_daily_averages <- function(parquet_files, admin_level) {
       DBI::dbGetQuery(duckdb_proxy, ts_query) |>
         dplyr::as_tibble() |>
         dplyr::mutate(
-          comarca = name,
+          name = name,
           geom = sf::st_as_text(geom)
         )
     },
@@ -134,12 +131,22 @@ write_meteoland_timeseries <- function(daily_averages) {
     region = ""
   )
 
+  data_to_write <- daily_averages |>
+    purrr::list_rbind()
+
+  file_name <- switch(
+    unique(data_to_write$admin_level),
+    "municipio" = "meteoland-spain-app-pngs/daily_interpolated_meteo_timeseries_municipio.parquet",
+    "comarca" = "meteoland-spain-app-pngs/daily_interpolated_meteo_timeseries_comarca.parquet",
+    "provincia" = "meteoland-spain-app-pngs/daily_interpolated_meteo_timeseries_provincia.parquet"
+  )
+
   # write png tibble
   daily_averages |>
     purrr::list_rbind() |>
     arrow::write_parquet(
-      sink = s3_fs$path("meteoland-spain-app-pngs/daily_interpolated_meteo_timeseries.parquet")
+      sink = s3_fs$path(file_name)
     )
 
-  return("s3://meteoland-spain-app-pngs/daily_interpolated_meteo_timeseries.parquet")
+  return(paste0("s3://", file_name))
 }
