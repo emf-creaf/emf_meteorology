@@ -7,5 +7,6 @@ data-raw/*.gpkg
 data-raw/*.rds
 data-raw/mapSpain_cache/
 data-raw/debug.R
+data-raw/discrepancy*
 interpolators/
 .Renviron
