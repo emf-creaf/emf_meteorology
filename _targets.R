@@ -130,11 +130,11 @@ list(
     meteo_bitmap_writer(png_tibbles)
   ),
   # timeseries for regions
-  # tar_target(
-  #   municipio_daily_averages,
-  #   calculate_daily_averages(interpolated_parquet_files, "municipio"),
-  #   pattern = map(interpolated_parquet_files)
-  # ),
+  tar_target(
+    municipio_daily_averages,
+    calculate_daily_averages_for_munis(interpolated_parquet_files),
+    pattern = map(interpolated_parquet_files)
+  ),
   tar_target(
     comarca_daily_averages,
     calculate_daily_averages(interpolated_parquet_files, "comarca"),
@@ -145,9 +145,9 @@ list(
     calculate_daily_averages(interpolated_parquet_files, "provincia"),
     pattern = map(interpolated_parquet_files)
   ),
-  # tar_target(
-  #   municipio_timeseries, write_meteoland_timeseries(municipio_daily_averages)
-  # ),
+  tar_target(
+    municipio_timeseries, write_meteoland_timeseries(municipio_daily_averages)
+  ),
   tar_target(
     comarca_timeseries, write_meteoland_timeseries(comarca_daily_averages)
   ),
