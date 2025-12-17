@@ -1,8 +1,8 @@
 meteo_formatter <- function(aemet, meteocat, meteogalicia, ria) {
 
   # check args
-  if (all(is.null(aemet), is.null(meteocat), is.null(meteogalicia), is.null(ria))) {
-    cli::cli_abort("Some meteo is missing, unable to format and continue")
+  if (is.null(aemet)) {
+    cli::cli_abort("AEMET meteo is missing, unable to format and continue")
   }
   # polygon to remove Canary islands and Ceuta/Melilla
   bbox_peninsula <- sf::st_bbox(
